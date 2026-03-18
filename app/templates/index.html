@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Сравнение продуктовой корзины</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main class="wrap">
+    <h1>Сравнение продуктовой корзины</h1>
+    <p class="lead">Первая версия MVP для Rimi и Selver</p>
+
+    <section class="card">
+      <label for="basket">Список продуктов — по одному товару на строку</label>
+      <textarea id="basket" placeholder="молоко&#10;яйца 10 шт&#10;хлеб&#10;бананы&#10;куриное филе">молоко
+яйца
+хлеб
+бананы
+куриное филе</textarea>
+      <button id="compareBtn">Сравнить корзину</button>
+      <p class="hint">Сейчас используется demo-каталог. UI и логика сравнения уже готовы для подключения реальных источников.</p>
+    </section>
+
+    <section id="summary" class="summary hidden"></section>
+    <section id="results" class="card hidden"></section>
+  </main>
+
+  <script>
+    const btn = document.getElementById('compareBtn');
+    const basket = document.getElementById('basket');
+    const summary = document.getElementById('summary');
+    const results = document.getElementById('results');
+
+    function fmt(value) {
+      return value == null ? '—' : `${value.toFixed(2)} €`;
+    }
+
+    function renderTable(data) {
+      const rows = data.rows.map(row => `
+        <tr>
+          <td>${row.query}</td>
+          <td>
+            ${row.rimi ? `<strong>${row.rimi.name}</strong><br>${fmt(row.rimi.price)}<br><span class="muted">${row.rimi.unit}</span>` : 'Не найдено'}
+          </td>
+          <td>
+            ${row.selver ? `<strong>${row.selver.name}</strong><br>${fmt(row.selver.price)}<br><span class="muted">${row.selver.unit}</span>` : 'Не найдено'}
+          </td>
+          <td>${row.best_store ? `${row.best_store}<br><strong>${fmt(row.best_price)}</strong>` : '—'}</td>
+        </tr>
+      `).join('');
+
+      results.innerHTML = `
+        <h2>Результаты</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Запрос</th>
+              <th>Rimi</th>
+              <th>Selver</th>
+              <th>Лучший вариант</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <p class="hint">${data.note}</p>
+      `;
+      results.classList.remove('hidden');
+    }
+
+    function renderSummary(data) {
+      summary.innerHTML = `
+        <div class="pill">Rimi: ${fmt(data.totals.Rimi)}</div>
+        <div class="pill">Selver: ${fmt(data.totals.Selver)}</div>
+        <div class="pill highlight">Смешанная корзина: ${fmt(data.totals.mixed)}</div>
+        <div class="winner">Лучший итог: <strong>${data.winner || '—'}</strong></div>
+      `;
+      summary.classList.remove('hidden');
+    }
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'Сравниваю...';
+      try {
+        const res = await fetch('/api/compare', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({basket: basket.value})
+        });
+        const data = await res.json();
+        renderSummary(data);
+        renderTable(data);
+      } catch (e) {
+        results.innerHTML = `<p>Ошибка: не удалось выполнить сравнение.</p>`;
+        results.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Сравнить корзину';
+      }
+    });
+  </script>
+</body>
+</html>
